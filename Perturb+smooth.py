@@ -5,7 +5,7 @@ from sklearn.metrics import mean_absolute_error
 import agm
 
 
-def direct_perturb(sampled_data, epsilon):  # 直接扰动
+def direct_perturb(sampled_data, epsilon):
     for col in sampled_data.columns[1:]:
         values = sampled_data[col].values.tolist()
         noise_data = [0] * len(values)
@@ -118,3 +118,4 @@ def main():
 
 
 main()
+
