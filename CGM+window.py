@@ -22,7 +22,7 @@ def correlated_data(sampled_data, mean_value):
     return sampled_data
 
 
-def roll_window_perturb(sampled_data, epsilon, w, mean_value):  # 利用固定的滑动窗口，来对数据进行加噪，其中利用Wiener 滤波器
+def roll_window_perturb(sampled_data, epsilon, w, mean_value):
     sampled_data = correlated_data(sampled_data, mean_value)
     df_sample = sampled_data
     for col in df_sample.columns[1:]:
@@ -142,3 +142,4 @@ def main():
 
 
 main()
+
