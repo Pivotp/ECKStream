@@ -4,7 +4,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
 
 
-def direct_perturb(sampled_data, epsilon):  # 直接扰动
+def direct_perturb(sampled_data, epsilon):
     for col in sampled_data.columns[1:]:
         values = sampled_data[col].values.tolist()
         max_value = max(map(float, values))
@@ -62,3 +62,4 @@ def main():
 
 
 main()
+
