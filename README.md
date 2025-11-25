@@ -6,6 +6,5 @@ The CN-OBEE dataset was sourced from https://springernature.figshare.com/article
 
 The HomeC dataset was obtained from https://www.kaggle.com/datasets/taranvee/smart-home-dataset-with-weather-information/data  
 
-The baseline methods are Naive.py, CGM.py, CGM+window.py, and CompOrder.py.  
-ECKStream-self.py corresponds to the self-segmentation method in the ECKStream approach.  
-The ablation study for ECKStream includes Perturb.py and Perturb+smooth.py. The Perturb+Seg method can be directly executed by running ECKStream-self.py.
+The baseline methods are Naive.py, Pegasus.py, and CompOrder.py.  
+The ablation study for ECKStream includes Perturb.py and Perturb+smooth.py. The Perturb+Seg method can be directly executed by running ECKStream.py.
