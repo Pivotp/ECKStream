@@ -320,15 +320,6 @@ def compute_smooth_sensitivity(current_sen, sen, max_k, beta):
     return smooth_sens
 
 
-def MAE(df1, df2):
-    real_value = list(df1.values())
-    noise_value = [df2.get(key) for key in df1.keys()]
-
-    mae = mean_absolute_error(real_value, noise_value)
-
-    return mae
-
-
 def read_data(U, target_node):
     node_info = []
     for time, data in U[target_node].items():
@@ -369,26 +360,6 @@ def noise_data(U, df):
     return mean_distance, mean_mae
 
 
-def noise_mean(U):
-    noise_mean_value = {}
-    noise_std_value = {}
-
-    for node in V:
-        target_node = node
-        node_information = read_data(U, target_node)
-        df = pd.DataFrame([{
-            'time': data['time'],
-            'node': data['node'],
-            'value': data['value'],
-            'weather': data['weather']
-        } for data in node_information])
-        node_mean = df.groupby('node')['value'].mean()
-        node_std = df.groupby('node')['value'].std()
-        noise_mean_value.update(node_mean.to_dict())
-        noise_std_value.update(node_std.to_dict())
-    return noise_mean_value, noise_std_value
-
-
 def main():
     min_epsilon, max_epsilon, step_epsilon = 0.5, 5.5, 0.5
 
@@ -400,7 +371,6 @@ def main():
             all_mean_distances = []
             all_mae_error = []
             for run in range(num_runs):
-                std_value = {}
                 df = pd.read_csv('Power.csv')
                 for node in V:
                     std_value[node] = df[node].std()
@@ -418,3 +388,4 @@ def main():
 
 
 main()
+
