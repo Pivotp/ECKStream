@@ -4,7 +4,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
 
 
-def direct_perturb(sampled_data, epsilon):
+def direct_perturb(sampled_data, epsilon): 
     for col in sampled_data.columns[1:]:
         values = sampled_data[col].values.tolist()
         noise_data = [0] * len(values)
@@ -38,8 +38,6 @@ def direct_perturb(sampled_data, epsilon):
 
 def main():
     min_epsilon, max_epsilon, step_epsilon = 0.5, 5.5, 0.5
-    file = pd.read_csv('Power.csv')
-
     with open("results_1.txt", "a") as f:
         f.write("Epsilon\tMAE\tRMSE\tNMAE\n")
         f.flush()
@@ -55,7 +53,6 @@ def main():
                 df = pd.read_csv('Power.csv', low_memory=False)
                 nodes = df.columns[1:]
                 direct_data = direct_perturb(df.copy(), ep)
-
                 for node in nodes:
                     orig = df[node].values
                     perturbed = direct_data[node].values
@@ -70,15 +67,11 @@ def main():
                 all_mae_error.append(mean_mae)
                 mean_distance = sum(euclidean_distance.values()) / len(euclidean_distance)
                 all_mean_distances.append(mean_distance)
-
             avg_mean_distance = np.mean(all_mean_distances)
             avg_mae_error = np.mean(all_mae_error)
-            print(avg_mean_distance)
-            print(avg_mae_error)
             f.write("mean_distance"f"{ep}\t{avg_mean_distance}\n")
             f.write("mean_mae"f"{ep}\t{avg_mae_error}\n")
             f.flush()
 
 
 main()
-
