@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
-import agm
 
 
 def direct_perturb(sampled_data, epsilon):
@@ -51,31 +50,23 @@ def kalman_filter(noise_data, process_var, measure_var):
     smooth_data = np.zeros(n)
     x_hat = noise_data[0]
     P = measure_var
-
     smooth_data[0] = x_hat
-
     if n == 1:
         return smooth_data
-
     for k in range(1, n):
         x_hat_minus = x_hat
         P_minus = P + process_var
-
         S = P_minus + measure_var
         K = P_minus / S
-
         z = noise_data[k]
         x_hat = x_hat_minus + K * (z - x_hat_minus)
         P = (1 - K) * P_minus
-
         smooth_data[k] = x_hat
-
     return smooth_data
 
 
 def main():
     min_epsilon, max_epsilon, step_epsilon = 0.5, 5.5, 0.5
-
     with open("results_perturb.txt", "a") as f:
         f.write("Epsilon\tMAE\tRMSE\tNMAE\n")
         f.flush()
@@ -90,8 +81,8 @@ def main():
                 mae_error = {}
                 df = pd.read_csv('Power.csv', low_memory=False)
                 nodes = df.columns[1:]
-                direct_data = direct_perturb(df.copy(), ep)
 
+                direct_data = direct_perturb(df.copy(), ep)
                 for node in nodes:
                     orig = df[node].values
                     perturbed = direct_data[node].values
@@ -105,17 +96,11 @@ def main():
                 all_mae_error.append(mean_mae)
                 mean_distance = sum(euclidean_distance.values()) / len(euclidean_distance)
                 all_mean_distances.append(mean_distance)
-
             avg_mean_distance = np.mean(all_mean_distances)
             avg_mae_error = np.mean(all_mae_error)
-            print(avg_mean_distance)
-            print(avg_mae_error)
-
             f.write("mean_distance"f"{ep}\t{avg_mean_distance}\n")
             f.write("mean_mae"f"{ep}\t{avg_mae_error}\n")
-
             f.flush()
 
 
 main()
-
