@@ -101,6 +101,15 @@ def comporder(ex, domain_low, domain_high, eps, delay_time, flag=0, interval_=10
     return published_result
 
 
+def MAE(df1, df2):
+    real_value = list(df1.values())
+    noise_value = [df2.get(key) for key in df1.keys()]
+
+    mae = mean_absolute_error(real_value, noise_value)
+
+    return mae
+
+
 if __name__ == "__main__":
     min_epsilon, max_epsilon, step_epsilon = 0.4, 5.0, 0.5
 
@@ -113,34 +122,25 @@ if __name__ == "__main__":
             all_mean_distances = []
             all_mae_error = []
             for i in range(round_):
-
                 filename = "Power.csv"
                 df = pd.read_csv(filename, low_memory=False)
-
                 original_data = {}
                 noise_data = {}
                 euclidean_distance = {}
                 mae_error = {}
                 nodes = df.columns[1:]
-
                 for col in df.columns[1:]:
                     ex = df[[col]].astype(float).values.tolist()
-
                     data = np.zeros(len(ex), dtype=float)
-
                     for j in range(len(ex)):
                         data[j] = ex[j][0]
-
                     delay_time = 10
                     sensitivity_ = max(data)
-
                     domain_low = min(data)
                     domain_high = max(data)
-
                     original_data[col] = df[col].astype(float).values.tolist()
                     noise_data[col] = comporder(ex, domain_low, domain_high, ep, delay_time, flag=0, interval_=5,
                                                 num_=100)
-
                     orig = np.array(original_data[col])
                     perturbed = np.array(noise_data[col])
                     diff = orig - perturbed
@@ -149,7 +149,6 @@ if __name__ == "__main__":
                     abs_error = np.abs(orig - perturbed)
                     mae_error[col] = np.sum(abs_error[mask]) / vaild_count
                     euclidean_distance[col] = np.sqrt(np.sum((diff[mask]) ** 2))
-
                 mean_mae = sum(mae_error.values()) / len(nodes)
                 all_mae_error.append(mean_mae)
                 mean_distance = sum(euclidean_distance.values()) / len(euclidean_distance)
