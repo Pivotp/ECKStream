@@ -4,17 +4,20 @@ from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
 
 
-def direct_perturb(sampled_data, epsilon, mean_value): 
+def direct_perturb(sampled_data, epsilon):
+    float_cols = sampled_data.columns[1:]
+    sampled_data[float_cols] = sampled_data[float_cols].astype('float64')
     for col in sampled_data.columns[1:]:
         values = sampled_data[col].values.tolist()
         max_value = max(map(float, values))
         min_value = min(map(float, values))
-        a = max_value - min_value
-        scale = a / epsilon
+        a = np.linalg.norm(max_value - min_value)
+        delta = 2 * 1e-6
+        sigma = (a / epsilon) * np.sqrt(2 * np.log(1.25 / delta))
         for i in range(0, len(values)):
-            values[i] += np.random.laplace(0, scale)
-
+            values[i] += np.random.normal(0, sigma)
         sampled_data.loc[sampled_data.index, col] = values
+
     return sampled_data
 
 
@@ -65,3 +68,4 @@ def main():
 
 
 main()
+
