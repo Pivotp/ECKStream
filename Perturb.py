@@ -4,37 +4,21 @@ from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
 
 
-def direct_perturb(sampled_data, epsilon): 
+def direct_perturb(sampled_data, epsilon):  # 直接扰动
     for col in sampled_data.columns[1:]:
         values = sampled_data[col].values.tolist()
         noise_data = [0] * len(values)
         max_value = max(map(float, values))
         min_value = min(map(float, values))
         a = max_value - min_value
-        max_dif = np.max(np.diff(values))
-        min_dif = np.min(np.diff(values))
-        b = max_dif - min_dif
-        if a <= 2 * b:
-            scale = a / epsilon
-            epsilon_1 = epsilon
-            epsilon_2 = 0
-        else:
-            scale = a / (epsilon / 2)
-            epsilon_1 = 0
-            epsilon_2 = epsilon / 2
+        scale = a / epsilon
         noise_j = np.random.laplace(0, scale)
         noise_data[0] = values[0] + noise_j
         for j in range(1, len(values)):
-            if a <= 2 * b:
-                scale = a / epsilon_1
-                noise_data[j] = values[j] + np.random.laplace(0, scale)
-            else:
-                scale = b / epsilon_2
-                noise_data[j] = (values[j] - values[j - 1]) + np.random.laplace(0, scale) + noise_data[j - 1]
-
+            scale = a / epsilon
+            noise_data[j] = values[j] + np.random.laplace(0, scale)
         sampled_data.loc[sampled_data.index, col] = noise_data
     return sampled_data
-
 
 def main():
     min_epsilon, max_epsilon, step_epsilon = 0.5, 5.5, 0.5
@@ -75,3 +59,4 @@ def main():
 
 
 main()
+
