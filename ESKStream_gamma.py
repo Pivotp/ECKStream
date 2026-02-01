@@ -17,24 +17,25 @@ def Event_triggered(epsilons, beta):
     weather_file['time'] = pd.to_datetime(weather_file['time'])
 
     U = {node: {} for node in V}
-    max_data = {node: 0 for node in V}
+    Delta = {node: 0 for node in V}
     Threshold = {}
     for node in V:
         node_data = file[node]
-        max_data[node] = max(node_data)
-        mean_value = file[node].mean()
+        max_node = max(node_data)
+        min_node = min(node_data)
+        Delta[node] = max_node - min_node
+        mean_value = node_data.mean()
         Threshold[node] = mean_value
-    print(Threshold)
 
     pre_trigger_index = {node: 0 for node in V}
     trigger_time_value = {node: 0 for node in V}
     initialization = {node: False for node in V}
     trigger_times = {node: 0 for node in V}
     x = {node: [] for node in V}
-    sens_a = {node: [] for node in V}
-    sens_b = {node: [] for node in V}
     ep = epsilons * 0.2
     epsilon = epsilons * 0.8
+    upper = {node: 0 for node in V}
+    lower = {node: 0 for node in V}
 
     for index, row in file.sort_values(by='time').iterrows():
         time = row['time']
@@ -47,17 +48,25 @@ def Event_triggered(epsilons, beta):
                 pre_trigger_index[node] = index
                 initialization[node] = True
 
-            x[node].append(current_value)
+           x[node].append(current_value)
             arr = np.array(x[node], dtype=float)
             mean = arr.mean()
             std = arr.std(ddof=0)
             Difference = current_value - mean
             abs_value = abs(Difference)
-
-            if (abs_value - 1.0 * std) + np.random.laplace(0, max_data[node] / ep) > 0:
+            delta = 1e-6
+            sigma = (Delta[node] / ep) * np.sqrt(2 * np.log(1.25 / delta))
+            noise = np.random.normal(0, sigma)
+            if (abs_value - 1.0 * std) + noise > 0:
 
                 trigger_times[node] += 1
                 current_time = time
+
+                upper_bound = mean + std
+                lower_bound = mean - std
+                upper[node] = upper_bound
+                lower[node] = lower_bound
+
                 clip = []
                 window_data = []
 
@@ -74,75 +83,36 @@ def Event_triggered(epsilons, beta):
                 min_value = min(window_data)
                 noise_data = [0] * window_size
 
-                if window_size == 1:
-                    diff = window_data[0]
-                    clip.append(diff)
-                else:
-                    for k in range(1, window_size):
-                        dif = window_data[k] - window_data[k - 1]
-                        clip.append(dif)
-                dif_max = max(clip)
-                dif_min = min(clip)
-                information_list = []
-                a = max_value - min_value
-                b = dif_max - dif_min
-                sen_a = sens_a[node]
-                sen_b = sens_b[node]
-                a = compute_smooth_sensitivity(a, sen_a, max_k=10, beta=beta)
-                b = compute_smooth_sensitivity(b, sen_b, max_k=10, beta=beta)
+                ls_Independent0 = max_value - min_value
+                ls_Independent1 = max(upper_bound - min_value, max_value - lower_bound)
+                ls_Independent2 = upper_bound - lower_bound
+                delta = 1e-6
+                beta = epsilon / (2 * math.log(1 / delta))
 
-                #  the first data in Xi
-                if a <= 2 * b:
-                    scale = a / epsilon
-                    epsilon_1 = epsilon
-                    epsilon_2 = 0
-                    measure_var = 2 * (a / epsilon) ** 2
-                    if window_size == 1:
-                        scale = max_value / epsilon
-                        measure_var = 2 * (max_value / epsilon) ** 2
-                        if max_value == 0:
-                            scale = 1e-5 / epsilon
-                            measure_var = 2 * scale ** 2
-                    if scale == 0 and window_size != 1:
-                        scale = 1e-5 / epsilon
+                a = max(ls_Independent0,
+                        ls_Independent1 * math.exp(-beta),
+                        ls_Independent2 * math.exp(-2 * beta))
+
+                alpha = epsilon / 2
+                scale = a / alpha
+                measure_var = 2 * (a / alpha) ** 2
+                if window_size == 1:
+                    scale = max_value / alpha
+                    measure_var = 2 * (max_value / alpha) ** 2
+                    if max_value == 0:
+                        scale = 1e-5 / alpha
                         measure_var = 2 * scale ** 2
-                else:
-                    scale = a / (epsilon / 2)
-                    epsilon_1 = 0
-                    epsilon_2 = epsilon / 2
-                    measure_var = 8 * ((b / epsilon) ** 2)
-                    if window_size == 2:
-                        measure_var = 2 * ((2 * dif_max) / epsilon) ** 2
-                        if measure_var == 0:
-                            measure_var = 2 * (1e-5 / epsilon_2) ** 2
-                    if scale == 0 and window_size != 2:
-                        scale = 1e-5 / epsilon_2
-                        measure_var = 2 * scale ** 2
-                    if b == 0 and window_size != 2 and scale != 0:
-                        measure_var = 2 * ((2 * dif_max) / epsilon) ** 2
-                process_var = 0.05 * measure_var
+                if scale == 0 and window_size != 1:
+                    scale = 1e-5 / alpha
+                    measure_var = 2 * scale ** 2
+                process_var = c * measure_var
                 noise_j = np.random.laplace(0, scale)
                 noise_data[0] = window_data[0] + noise_j
-
-                # other data
                 for j in range(1, window_size):
-                    if a <= 2 * b:
-                        scale = a / epsilon_1
-                        if scale == 0:
-                            scale = 1e-5 / epsilon_1
-                        noise_data[j] = window_data[j] + np.random.laplace(0, scale)
-                    else:
-                        scale = b / epsilon_2
-                        if window_size == 2:
-                            dif_max = abs(dif_max)
-                            if dif_max == 0:
-                                scale = 1e-5 / epsilon_2
-                            else:
-                                scale = dif_max / epsilon_2
-                        if scale == 0 and window_size != 2:
-                            scale = 1e-5 / epsilon_2
-                        noise_data[j] = (window_data[j] - window_data[j - 1]) + np.random.laplace(0, scale) + \
-                                        noise_data[j - 1]
+                    scale = a / alpha
+                    if scale == 0:
+                        scale = 1e-5 / alpha
+                    noise_data[j] = window_data[j] + np.random.laplace(0, scale)
 
                 smooth_data = kalman_filter(noise_data, process_var, measure_var)
                 adj = 0
@@ -179,10 +149,10 @@ def Event_triggered(epsilons, beta):
                 trigger_time_value[node] = current_value
                 pre_trigger_index[node] = index
                 x[node] = [trigger_time_value[node]]
-                sens_a[node].insert(0, a)
-                sens_b[node].insert(0, b)
 
     for node in V:
+        upper_bound = 0
+        lower_bound = 0
         if pre_trigger_index[node] >= len(file):
             continue
 
@@ -201,74 +171,42 @@ def Event_triggered(epsilons, beta):
         min_value = min(window_data)
         noise_data = [0] * window_size
 
-        if window_size == 1:
-            diff = window_data[0]
-            clip.append(diff)
-        else:
-            for k in range(1, window_size):
-                dif = window_data[k] - window_data[k - 1]
-                clip.append(dif)
-        dif_max = max(clip)
-        dif_min = min(clip)
-        information_list = []
-        a = max_value - min_value
-        b = dif_max - dif_min
-        # print(str(a) + '\t' + str(b))
-        sen_a = sens_a[node]
-        sen_b = sens_b[node]
-        a = compute_smooth_sensitivity(a, sen_a, max_k=10, beta=beta)
-        b = compute_smooth_sensitivity(b, sen_b, max_k=10, beta=beta)
+        if max_value < lower[node]:
+            upper_bound = lower[node]
+            lower_bound = min_value
+        elif min_value > upper[node]:
+            lower_bound = upper[node]
+            upper_bound = max_value
 
-        if a <= 2 * b:
-            scale = a / epsilon
-            epsilon_1 = epsilon
-            epsilon_2 = 0
-            measure_var = 2 * (a / epsilon) ** 2
-            if window_size == 1:
-                scale = max_value / epsilon
-                measure_var = 2 * (max_value / epsilon) ** 2
-                if max_value == 0:
-                    scale = 1e-5 / epsilon
-                    measure_var = 2 * scale ** 2
-            if scale == 0 and window_size != 1:
-                scale = 1e-5 / epsilon
+        ls_Independent0 = max_value - min_value
+        ls_Independent1 = max(upper_bound - min_value, max_value - lower_bound)
+        ls_Independent2 = upper_bound - lower_bound
+        delta = 1e-6
+        beta = epsilon / (2 * math.log(1 / delta))
+        a = max(ls_Independent0,
+                ls_Independent1 * math.exp(-beta),
+                ls_Independent2 * math.exp(-2 * beta))
+
+        alpha = epsilon / 2
+        scale = a / alpha
+        measure_var = 2 * (a / alpha) ** 2
+        if window_size == 1:
+            scale = max_value / alpha
+            measure_var = 2 * (max_value / alpha) ** 2
+            if max_value == 0:
+                scale = 1e-5 / alpha
                 measure_var = 2 * scale ** 2
-        else:
-            scale = a / (epsilon / 2)
-            epsilon_1 = 0
-            epsilon_2 = epsilon / 2
-            measure_var = 8 * ((b / epsilon) ** 2)
-            if window_size == 2:
-                measure_var = 2 * ((2 * dif_max) / epsilon) ** 2
-                if measure_var == 0:
-                    measure_var = 2 * (1e-5 / epsilon_2) ** 2
-            if scale == 0 and window_size != 2:
-                scale = 1e-5 / epsilon_2
-                measure_var = 2 * scale ** 2
-            if b == 0 and window_size != 2 and scale != 0:
-                measure_var = 2 * ((2 * dif_max) / epsilon) ** 2
-        process_var = 0.05 * measure_var
+        if scale == 0 and window_size != 1:
+            scale = 1e-5 / alpha
+            measure_var = 2 * scale ** 2
+        process_var = c * measure_var
         noise_j = np.random.laplace(0, scale)
         noise_data[0] = window_data[0] + noise_j
-
-        # other data
         for j in range(1, window_size):
-            if a <= 2 * b:
-                scale = a / epsilon_1
-                if scale == 0:
-                    scale = 1e-5 / epsilon_1
-                noise_data[j] = window_data[j] + np.random.laplace(0, scale)
-            else:
-                scale = b / epsilon_2
-                if window_size == 2:
-                    dif_max = abs(dif_max)
-                    if dif_max == 0:
-                        scale = 1e-5 / epsilon_2
-                    else:
-                        scale = dif_max / epsilon_2
-                if scale == 0 and window_size != 2:
-                    scale = 1e-5 / epsilon_2
-                noise_data[j] = (window_data[j] - window_data[j - 1]) + np.random.laplace(0, scale) + noise_data[j - 1]
+            scale = a / alpha
+            if scale == 0:
+                scale = 1e-5 / alpha
+            noise_data[j] = window_data[j] + np.random.laplace(0, scale)
 
         smooth_data = kalman_filter(noise_data, process_var, measure_var)
         adj = 0
@@ -387,21 +325,21 @@ def noise_data(U, df):
 
 
 def main():
-    beta_list = [1, 2, 3, 4, 5]
+    c_list = [0.01, 0.05, 0.1, 0.2, 0.3]
     ep = 1.0
 
-    with open("results_single_beta.txt", "a") as f:
+    with open("results_single_gamma.txt", "a") as f:
         f.write("Epsilon\tMAE\tRMSE\tNMAE\n")
         f.flush()
 
-        for beta in beta_list:
+        for c in c_list:
             num_runs = 20
             all_mean_distances = []
             all_mae_error = []
 
             for run in range(num_runs):
                 df = pd.read_csv('Power.csv')
-                perturb_data, Threshold = Event_triggered(ep, beta)
+                perturb_data, Threshold = Event_triggered(ep, c)
                 mean_distance, mean_mae = noise_data(perturb_data, df)
                 all_mae_error.append(mean_mae)
                 all_mean_distances.append(mean_distance)
@@ -413,3 +351,4 @@ def main():
 
 
 main()
+
